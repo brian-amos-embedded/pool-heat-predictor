@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Pool Heat">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Pool Heat Predictor</title>
+  <style>
+    :root{--bg:#f4f7f7;--card:#fff;--text:#102a2a;--muted:#5b6b6b;--accent:#0f766e;--line:#d7e1e1}
+    *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:900px;margin:auto;padding:16px 14px 40px}h1{font-size:1.55rem;margin:8px 0 4px}.sub,.note,.status{color:var(--muted)}
+    .grid{display:grid;gap:12px}.two{grid-template-columns:1fr}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#eaf5f4;border-radius:12px;padding:11px}.label,label{font-size:.8rem;color:var(--muted)}.value{font-weight:700;font-size:1.25rem;margin-top:3px}
+    .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}button{border:0;border-radius:10px;padding:11px 14px;font-weight:650}.primary{background:var(--accent);color:#fff}.secondary{background:#e7f1f0;color:var(--text)}.row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}.hidden{display:none}
+    canvas{width:100%;height:320px;display:block}.note,.status{font-size:.82rem;line-height:1.4}table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+    @media(min-width:720px){.two{grid-template-columns:1fr 1fr}.metrics{grid-template-columns:repeat(4,1fr)}}@media(max-width:520px){.fields{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pool Heat Predictor</h1>
+  <div class="sub">Weather-aware target-time estimate for iPhone and Android</div>
+
+  <button id="installBtn" class="primary hidden" style="width:100%;margin:12px 0">Install Pool Heat app</button>
+
+  <div class="metrics">
+    <div class="metric"><div class="label">Target time</div><div id="eta" class="value">—</div></div>
+    <div class="metric"><div class="label">Weather</div><div id="weatherNow" class="value">—</div></div>
+    <div class="metric"><div class="label">Heating rate</div><div id="rateNow" class="value">—</div></div>
+    <div class="metric"><div class="label">Confidence</div><div id="confidence" class="value">—</div></div>
+  </div>
+
+  <div class="grid two" style="margin-top:12px">
+    <section class="card">
+      <h2 style="margin-top:0;font-size:1.05rem">Current session</h2>
+      <div class="fields">
+        <div><label>Current pool temperature (°F)</label><input id="currentTemp" type="number" step="0.1" value="83"></div>
+        <div><label>Target temperature (°F)</label><input id="targetTemp" type="number" step="0.1" value="90"></div>
+        <div><label>Cover</label><select id="cover"><option value="closed">Closed</option><option value="open">Open</option></select></div>
+        <div><label>Pump / heater</label><select id="pump"><option value="full">Full flow, firing</option><option value="low">Low flow / uncertain</option><option value="off">Off</option></select></div>
+      </div>
+      <div class="row" style="margin-top:10px"><button id="updateBtn" class="primary">Update prediction</button><button id="locateBtn" class="secondary">Use my location</button></div>
+      <div id="status" class="status" style="margin-top:8px">Using State College, Pennsylvania defaults.</div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0;font-size:1.05rem">Pool and heater</h2>
+      <div class="fields">
+        <div><label>Pool volume (gal)</label><input id="gallons" type="number" value="11500"></div>
+        <div><label>Surface area (ft²)</label><input id="area" type="number" value="504"></div>
+        <div><label>Heater input (BTU/hr)</label><input id="btu" type="number" value="250000"></div>
+        <div><label>Efficiency (%)</label><input id="efficiency" type="number" value="84"></div>
+        <div><label>Measured baseline (°F/hr)</label><input id="baseline" type="number" step="0.1" value="2.1"></div>
+        <div><label>Model</label><select id="mode"><option value="hybrid">Physics + calibration</option><option value="physics">Physics only</option><option value="calibrated">Calibration only</option></select></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:12px"><h2 style="margin-top:0;font-size:1.05rem">Projected temperature</h2><canvas id="chart"></canvas></section>
+
+  <div class="grid two" style="margin-top:12px">
+    <section class="card">
+      <h2 style="margin-top:0;font-size:1.05rem">Add calibration reading</h2>
+      <div class="fields"><div><label>Time</label><input id="readingTime" type="time"></div><div><label>Temperature (°F)</label><input id="readingTemp" type="number" step="0.1"></div></div>
+      <div class="row" style="margin-top:10px"><button id="addReading" class="secondary">Add reading</button><button id="clearReadings" class="secondary">Clear</button></div>
+      <div class="note" style="margin-top:8px">Two or more readings let the model learn the actual heating rate.</div>
+    </section>
+    <section class="card"><h2 style="margin-top:0;font-size:1.05rem">Readings</h2><table><thead><tr><th>Time</th><th>Temperature</th></tr></thead><tbody id="rows"></tbody></table></section>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let weather=[],deferredInstall=null;let readings=JSON.parse(localStorage.getItem('poolReadings')||'[]');
+const ids=['currentTemp','targetTemp','cover','pump','gallons','area','btu','efficiency','baseline','mode'];
+function save(){const o={};ids.forEach(id=>o[id]=$(id).value);localStorage.setItem('poolSettings',JSON.stringify(o))}
+function load(){const o=JSON.parse(localStorage.getItem('poolSettings')||'{}');Object.entries(o).forEach(([k,v])=>{if($(k))$(k).value=v});$('readingTime').value=new Date().toTimeString().slice(0,5)}
+function mins(t){const [h,m]=t.split(':').map(Number);return h*60+m}
+function render(){const r=$('rows');r.innerHTML=readings.length?readings.map(x=>`<tr><td>${x.time}</td><td>${Number(x.temp).toFixed(1)}°F</td></tr>`).join(''):'<tr><td colspan="2" class="note">No readings yet.</td></tr>'}
+function calibration(){if(readings.length<2)return null;const p=readings.map(r=>({x:mins(r.time),y:+r.temp})).sort((a,b)=>a.x-b.x),n=p.length;let sx=0,sy=0,sxy=0,sxx=0;p.forEach(q=>{sx+=q.x;sy+=q.y;sxy+=q.x*q.y;sxx+=q.x*q.x});const d=n*sxx-sx*sx;return d?((n*sxy-sx*sy)/d)*60:null}
+async function getWeather(){const lat=localStorage.getItem('lat')||40.7934,lon=localStorage.getItem('lon')||-77.86;try{const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,cloud_cover&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=2&timezone=auto`;const d=await(await fetch(u)).json();weather=d.hourly.time.map((t,i)=>({time:new Date(t),temp:d.hourly.temperature_2m[i],humidity:d.hourly.relative_humidity_2m[i],wind:d.hourly.wind_speed_10m[i],cloud:d.hourly.cloud_cover[i]}));const w=nearest(new Date());$('weatherNow').textContent=Math.round(w.temp)+'°F';$('status').textContent='Live weather loaded.'}catch(e){weather=[];$('weatherNow').textContent='Offline';$('status').textContent='Weather unavailable; using conservative defaults.'}}
+function nearest(d){if(!weather.length)return{temp:75,humidity:60,wind:3,cloud:50};return weather.reduce((a,b)=>Math.abs(b.time-d)<Math.abs(a.time-d)?b:a)}
+function clock(d){return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}
+function calculate(){save();const g=+$('gallons').value,a=+$('area').value,b=+$('btu').value,e=+$('efficiency').value/100,cur=+$('currentTemp').value,target=+$('targetTemp').value,base=+$('baseline').value,cal=calibration(),mode=$('mode').value,cover=$('cover').value,pump=$('pump').value;const physics=b*e/(g*8.34);let r=mode==='physics'?physics:mode==='calibrated'?(cal??base):(cal!==null?.65*cal+.35*physics:.55*base+.45*physics);if(pump==='low')r*=.55;if(pump==='off')r=0;let t=new Date(),temp=cur,eta=null,points=[{time:new Date(t),temp}];for(let i=0;i<192;i++){const w=nearest(t),delta=Math.max(0,temp-w.temp),loss=(cover==='closed'?.00045:.0022)*a*delta*(cover==='closed'?1:1+Math.min(2,w.wind/8))/10,evap=cover==='open'?Math.max(0,(70-w.humidity)/100)*.18:0,solar=(cover==='closed'?.03:.16)*(1-w.cloud/100),net=Math.max(-.5,r-loss-evap+solar);temp+=net/4;t=new Date(t.getTime()+900000);points.push({time:new Date(t),temp});if(!eta&&temp>=target)eta=new Date(t);if(eta&&temp>target+5)break}const w=nearest(new Date()),netNow=r-(cover==='closed'?.00045:.0022)*a*Math.max(0,cur-w.temp)/10;$('rateNow').textContent=netNow.toFixed(1)+'°F/hr';$('eta').textContent=eta?clock(eta):'Not today';$('confidence').textContent=cal!==null?'High':weather.length?'Medium':'Low';draw(points,target)}
+function draw(p,target){const c=$('chart'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1,w=c.clientWidth||800,h=320;c.width=w*dpr;c.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);const pad={l:45,r:15,t:15,b:38},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b,vals=p.map(x=>x.temp).concat(target),lo=Math.floor(Math.min(...vals)-1),hi=Math.ceil(Math.max(...vals)+1),x=i=>pad.l+i/(p.length-1)*pw,y=v=>pad.t+(hi-v)/(hi-lo)*ph;ctx.strokeStyle='#d7e1e1';ctx.lineWidth=1;for(let j=0;j<=5;j++){const yy=pad.t+j*ph/5;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillStyle='#5b6b6b';ctx.font='12px sans-serif';ctx.fillText(Math.round(hi-j*(hi-lo)/5)+'°',5,yy+4)}ctx.strokeStyle='#b45309';ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(pad.l,y(target));ctx.lineTo(w-pad.r,y(target));ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#0f766e';ctx.lineWidth=3;ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(x(i),y(q.temp)):ctx.moveTo(x(i),y(q.temp)));ctx.stroke();ctx.fillStyle='#5b6b6b';for(let j=0;j<=4;j++){const i=Math.round(j*(p.length-1)/4);ctx.fillText(clock(p[i].time),x(i)-20,h-14)}}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('installBtn').classList.remove('hidden')});$('installBtn').onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$('installBtn').classList.add('hidden')};window.addEventListener('appinstalled',()=>{$('installBtn').classList.add('hidden')});
+$('updateBtn').onclick=async()=>{await getWeather();calculate()};$('locateBtn').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(async p=>{localStorage.setItem('lat',p.coords.latitude);localStorage.setItem('lon',p.coords.longitude);await getWeather();calculate()},()=>{$('status').textContent='Location permission was not granted.'}):null;
+$('addReading').onclick=()=>{if(!$('readingTime').value||$('readingTemp').value==='')return;readings.push({time:$('readingTime').value,temp:+$('readingTemp').value});readings.sort((a,b)=>mins(a.time)-mins(b.time));localStorage.setItem('poolReadings',JSON.stringify(readings));$('readingTemp').value='';render();calculate()};$('clearReadings').onclick=()=>{readings=[];localStorage.removeItem('poolReadings');render();calculate()};window.addEventListener('resize',calculate);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');load();render();getWeather().then(calculate);
+</script>
+</body>
+</html>
