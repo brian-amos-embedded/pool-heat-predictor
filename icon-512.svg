@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#0f766e"/>
+  <ellipse cx="256" cy="278" rx="166" ry="108" fill="#d9f3f0"/>
+  <path d="M128 240c38-92 218-92 256 0" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round"/>
+  <text x="256" y="314" text-anchor="middle" font-family="Arial,sans-serif" font-size="102" font-weight="700" fill="#0f766e">90°</text>
+</svg>
