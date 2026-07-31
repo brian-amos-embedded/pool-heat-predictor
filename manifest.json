@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "Pool Heat Predictor",
+  "short_name": "Pool Heat",
+  "description": "Weather-aware pool heating time predictor for iPhone and Android.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7f7",
+  "theme_color": "#0f766e",
+  "categories": ["utilities", "weather"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
